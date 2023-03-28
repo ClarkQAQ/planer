@@ -15,14 +15,14 @@ type Job struct {
 	Job  func()
 }
 
-func NewJobs() *Jobs {
+func newJobs() *Jobs {
 	return &Jobs{
 		jobs: []*Job{},
 		lock: &sync.Mutex{},
 	}
 }
 
-func (j *Jobs) Insert(jb *Job) {
+func (j *Jobs) insert(jb *Job) {
 	j.lock.Lock()
 	defer j.lock.Unlock()
 
@@ -79,13 +79,14 @@ type Planer struct {
 	*Jobs
 
 	timer        *time.Timer
+	currentJob   *Job
 	signal       chan bool
 	waitDuration time.Duration
 }
 
 func New() *Planer {
 	return &Planer{
-		Jobs:         NewJobs(),
+		Jobs:         newJobs(),
 		timer:        nil,
 		signal:       make(chan bool),
 		waitDuration: time.Second,
@@ -103,10 +104,25 @@ func (p *Planer) AddJob(unix int64, job func()) {
 		return
 	}
 
-	p.Insert(&Job{
+	p.insert(&Job{
 		Unix: unix,
 		Job:  job,
 	})
+
+	if p.timer == nil {
+		return
+	}
+
+	if p.currentJob != nil {
+		if unix > p.currentJob.Unix {
+			return
+		}
+
+		p.insert(p.currentJob)
+	}
+
+	p.currentJob = p.pop()
+	p.timer.Reset(time.Duration(p.currentJob.Unix-unix) * time.Second)
 }
 
 func (p *Planer) Start() {
@@ -119,26 +135,27 @@ func (p *Planer) Start() {
 
 func (p *Planer) run() {
 	p.timer = time.NewTimer(p.waitDuration)
-	job := p.pop()
+	p.currentJob = p.pop()
 	for {
 		select {
 		case <-p.signal:
 			p.timer.Stop()
 			p.timer = nil
 			return
+
 		case now := <-p.timer.C:
-			if job != nil && job.Unix <= now.Unix() {
-				go job.Job()
-				job = p.pop()
+			if p.currentJob != nil && p.currentJob.Unix <= now.Unix() {
+				go p.currentJob.Job()
+				p.currentJob = p.pop()
 			}
 
 			// 定义下次执行时间
-			if job != nil && job.Unix-now.Unix() >= 0 {
-				p.timer.Reset(time.Duration(job.Unix-now.Unix()) * time.Second)
+			if p.currentJob != nil && p.currentJob.Unix-now.Unix() >= 0 {
+				p.timer.Reset(time.Duration(p.currentJob.Unix-now.Unix()) * time.Second)
 				continue
 			}
 
-			job = p.pop()
+			p.currentJob = p.pop()
 			p.timer.Reset(p.waitDuration)
 		}
 	}

@@ -1,6 +1,7 @@
 package planer
 
 import (
+	"fmt"
 	"math/rand"
 	"sort"
 	"sync"
@@ -27,6 +28,38 @@ func TestPlaner_Start(t *testing.T) {
 	select {
 	case <-ch:
 	case <-time.After(time.Second * 2):
+		t.Error("timeout")
+	}
+}
+
+func TestPlaner_BugJob1(t *testing.T) {
+	p := New()
+	p.SetWaitDuration(time.Second)
+
+	ch1 := make(chan bool)
+	p.AddJob(time.Now().Unix()+1, func() {
+		ch1 <- true
+	})
+
+	p.AddJob(time.Now().Unix()+300, func() {
+		fmt.Println("hello world 300")
+	})
+
+	p.Start()
+	defer p.Stop()
+
+	time.Sleep(time.Second * 2)
+
+	ch2 := make(chan bool)
+	p.AddJob(time.Now().Unix()+1, func() {
+		ch2 <- true
+	})
+
+	<-ch1
+
+	select {
+	case <-ch2:
+	case <-time.After(time.Second * 3):
 		t.Error("timeout")
 	}
 }
@@ -100,7 +133,7 @@ func TestJobs_insert(t *testing.T) {
 	}
 
 	for _, v := range data {
-		j.Insert(&Job{
+		j.insert(&Job{
 			Unix: v,
 		})
 	}
@@ -130,7 +163,7 @@ func Benchmark_insert(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		j.Insert(&Job{
+		j.insert(&Job{
 			Unix: mm[i%100],
 		})
 	}
