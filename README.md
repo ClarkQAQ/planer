@@ -48,18 +48,20 @@ func main() {
 
 3. Benchmark
 
-主要是排序性能太差了, 有时间再优化吧...目前业务撑死不可能有达到瓶颈数量的任务...
+删除了插入排序改成了读取排序, 插入速度提升了, 读取速度虽慢, 但是对于一个秒级的计划任务来说, 并没影响
 
 ```go
 
-Running tool: /usr/bin/go test -benchmem -run=^$ -bench ^BenchmarkPlaner_AddJob$ github.com/ClarkQAQ/planer
+Running tool: /usr/bin/go test -benchmem -run=^$ -bench ^(BenchmarkPlaner_AddJob|Benchmark_insert|Benchmark_pop)$ github.com/ClarkQAQ/planer
 
 goos: linux
 goarch: amd64
 pkg: github.com/ClarkQAQ/planer
 cpu: AMD Ryzen 7 5800H with Radeon Graphics         
-BenchmarkPlaner_AddJob-16    	   22645	    130978 ns/op	      54 B/op	       1 allocs/op
+BenchmarkPlaner_AddJob-16    	11656350	       109.8 ns/op	      58 B/op	       1 allocs/op
+Benchmark_insert-16          	14705106	        77.22 ns/op	      57 B/op	       1 allocs/op
+Benchmark_pop-16             	194726499	         5.520 ns/op	       0 B/op	       0 allocs/op
 PASS
-ok  	github.com/ClarkQAQ/planer	3.499s
+ok  	github.com/ClarkQAQ/planer	3.982s
 
 ```

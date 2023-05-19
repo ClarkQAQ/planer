@@ -11,9 +11,14 @@ func main() {
 	p := planer.New()
 	p.SetWaitDuration(time.Second) // 设置没有任务时的循环时间
 
+	t := time.Now()
+
 	// 添加任务
 	p.AddJob(time.Now().Unix()+1, func() {
-		fmt.Println("hello world 1")
+		p.AddJob(time.Now().Unix()+2, func() {
+			fmt.Printf("hello world 1+2, since: %s\n", time.Since(t))
+		})
+		fmt.Printf("hello world 1, since: %s\n", time.Since(t))
 	})
 
 	p.AddJob(time.Now().Unix()+300, func() {
@@ -28,7 +33,10 @@ func main() {
 
 	// 添加任务
 	p.AddJob(time.Now().Unix()+5, func() {
-		fmt.Println("hello world 5")
+		p.AddJob(time.Now().Unix()+2, func() {
+			fmt.Printf("hello world 5+2+2, since: %s\n", time.Since(t))
+		})
+		fmt.Printf("hello world 5+2, since: %s\n", time.Since(t))
 	})
 
 	// 等待

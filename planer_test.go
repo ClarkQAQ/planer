@@ -120,6 +120,27 @@ func BenchmarkPlaner_AddJob(b *testing.B) {
 	}
 }
 
+func TestJobs_range(t *testing.T) {
+	j := &Jobs{
+		jobs: []*Job{},
+		lock: &sync.Mutex{},
+	}
+
+	for i := 0; i < 100000; i++ {
+		j.insert(&Job{
+			Unix: rand.Int63n(10000000000),
+		})
+	}
+
+	j.insert(&Job{
+		Unix: 1,
+	})
+
+	if j.pop().Unix != 1 {
+		t.Error("pop error")
+	}
+}
+
 func TestJobs_insert(t *testing.T) {
 	j := &Jobs{
 		jobs: []*Job{},
@@ -157,7 +178,7 @@ func Benchmark_insert(b *testing.B) {
 
 	mm := []int64{}
 	for i := 0; i < 100; i++ {
-		mm = append(mm, rand.Int63n(int64(b.N)))
+		mm = append(mm, rand.Int63n(int64(10000000000)))
 	}
 
 	b.ResetTimer()
@@ -166,5 +187,24 @@ func Benchmark_insert(b *testing.B) {
 		j.insert(&Job{
 			Unix: mm[i%100],
 		})
+	}
+}
+
+func Benchmark_pop(b *testing.B) {
+	j := &Jobs{
+		jobs: []*Job{},
+		lock: &sync.Mutex{},
+	}
+
+	for i := 0; i < 100000; i++ {
+		j.insert(&Job{
+			Unix: rand.Int63n(10000000000),
+		})
+	}
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		j.pop()
 	}
 }

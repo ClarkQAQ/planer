@@ -1,13 +1,27 @@
 package planer
 
 import (
+	"sort"
 	"sync"
 	"time"
 )
 
 type Jobs struct {
+	sort bool
 	jobs []*Job
 	lock *sync.Mutex
+}
+
+func (l Jobs) Len() int {
+	return len(l.jobs)
+}
+
+func (l Jobs) Less(i, j int) bool {
+	return l.jobs[i].Unix < l.jobs[j].Unix
+}
+
+func (l *Jobs) Swap(i, j int) {
+	l.jobs[i], l.jobs[j] = l.jobs[j], l.jobs[i]
 }
 
 type Job struct {
@@ -26,33 +40,8 @@ func (j *Jobs) insert(jb *Job) {
 	j.lock.Lock()
 	defer j.lock.Unlock()
 
+	j.sort = false
 	j.jobs = append(j.jobs, jb)
-
-	// 插入排序
-	// Benchmark_insert-16    	  167454	    174432 ns/op	      55 B/op	       1 allocs/op
-	// for i := 1; i < len(j.jobs); i++ {
-	// 	for n := i; n > 0 && j.jobs[n].Unix < j.jobs[n-1].Unix; n-- {
-	// 		j.jobs[n], j.jobs[n-1] = j.jobs[n-1], j.jobs[n]
-	// 	}
-	// }
-
-	// TODO: 还是太慢了
-	// 二分排序
-	// Benchmark_insert-16    	   21949	    133977 ns/op	      56 B/op	       1 allocs/op
-	for i := 1; i < len(j.jobs); i++ {
-		low, high := 0, i-1
-		for low <= high {
-			mid := (low + high) / 2
-			if j.jobs[i].Unix < j.jobs[mid].Unix {
-				high = mid - 1
-			} else {
-				low = mid + 1
-			}
-		}
-		for n := i; n > low; n-- {
-			j.jobs[n], j.jobs[n-1] = j.jobs[n-1], j.jobs[n]
-		}
-	}
 }
 
 func (j *Jobs) clean() {
@@ -67,6 +56,11 @@ func (j *Jobs) pop() *Job {
 
 	if len(j.jobs) < 1 {
 		return nil
+	}
+
+	if !j.sort {
+		sort.Sort(j)
+		j.sort = true
 	}
 
 	jb := j.jobs[0]
