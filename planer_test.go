@@ -1,7 +1,6 @@
 package planer
 
 import (
-	"fmt"
 	"math/rand"
 	"sort"
 	"sync"
@@ -25,6 +24,9 @@ func TestPlaner_Start(t *testing.T) {
 
 	p.Start()
 
+	// 多次启动
+	p.Start()
+
 	select {
 	case <-ch:
 	case <-time.After(time.Second * 2):
@@ -36,13 +38,18 @@ func TestPlaner_BugJob1(t *testing.T) {
 	p := New()
 	p.SetWaitDuration(time.Second)
 
-	ch1 := make(chan bool)
+	ch1, chd10 := make(chan bool), make(chan bool)
+	chu300 := make(chan bool)
 	p.AddJob(time.Now().Unix()+1, func() {
 		ch1 <- true
-	})
 
-	p.AddJob(time.Now().Unix()+300, func() {
-		fmt.Println("hello world 300")
+		p.AddJob(time.Now().Unix()-10, func() {
+			chd10 <- true
+		})
+
+		p.AddJob(time.Now().Unix()+300, func() {
+			chu300 <- true
+		})
 	})
 
 	p.Start()
@@ -55,12 +62,28 @@ func TestPlaner_BugJob1(t *testing.T) {
 		ch2 <- true
 	})
 
-	<-ch1
+	select {
+	case <-ch1:
+	case <-time.After(time.Second):
+		t.Error("ch1 timeout")
+	}
+
+	select {
+	case <-chd10:
+	case <-time.After(time.Second):
+		t.Error("chd10 timeout")
+	}
 
 	select {
 	case <-ch2:
-	case <-time.After(time.Second * 3):
-		t.Error("timeout")
+	case <-time.After(time.Second * 2):
+		t.Error("ch2 timeout")
+	}
+
+	select {
+	case <-chu300:
+		t.Error("chu300 should not be here")
+	default:
 	}
 }
 
