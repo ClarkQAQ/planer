@@ -52,16 +52,16 @@ func main() {
 
 ```go
 
-Running tool: /usr/bin/go test -benchmem -run=^$ -bench ^(BenchmarkPlaner_AddJob|Benchmark_insert|Benchmark_pop)$ github.com/ClarkQAQ/planer
-
+[clark@ArchOwO planer]$ go test -benchmem -run=^$ -bench ^Benchmark.*$ github.com/ClarkQAQ/planer
 goos: linux
 goarch: amd64
 pkg: github.com/ClarkQAQ/planer
 cpu: AMD Ryzen 7 5800H with Radeon Graphics         
-BenchmarkPlaner_AddJob-16    	11656350	       109.8 ns/op	      58 B/op	       1 allocs/op
-Benchmark_insert-16          	14705106	        77.22 ns/op	      57 B/op	       1 allocs/op
-Benchmark_pop-16             	194726499	         5.520 ns/op	       0 B/op	       0 allocs/op
+BenchmarkPlaner_AddJob-16       17171708                78.37 ns/op           60 B/op          1 allocs/op
+BenchmarkJobs_Insert-16         14351600                85.20 ns/op           58 B/op          1 allocs/op
+Benchmark_Pop-16                206814886                5.516 ns/op           0 B/op          0 allocs/op
+Benchmark_PopWithInsert-16      11885229               111.2 ns/op            57 B/op          1 allocs/op
 PASS
-ok  	github.com/ClarkQAQ/planer	3.982s
+ok      github.com/ClarkQAQ/planer      5.671s
 
 ```
