@@ -3,7 +3,6 @@ package planer
 import (
 	"math/rand"
 	"sort"
-	"sync"
 	"testing"
 	"time"
 )
@@ -34,6 +33,7 @@ func TestPlaner_Start(t *testing.T) {
 	}
 }
 
+// [Bug] 任务队列顺序问题 #1
 func TestPlaner_BugJob1(t *testing.T) {
 	p := New()
 	p.SetWaitDuration(time.Second)
@@ -143,11 +143,8 @@ func BenchmarkPlaner_AddJob(b *testing.B) {
 	}
 }
 
-func TestJobs_range(t *testing.T) {
-	j := &Jobs{
-		jobs: []*Job{},
-		lock: &sync.Mutex{},
-	}
+func TestJobs_Range(t *testing.T) {
+	j := newJobs()
 
 	for i := 0; i < 100000; i++ {
 		j.insert(&Job{
@@ -164,11 +161,8 @@ func TestJobs_range(t *testing.T) {
 	}
 }
 
-func TestJobs_insert(t *testing.T) {
-	j := &Jobs{
-		jobs: []*Job{},
-		lock: &sync.Mutex{},
-	}
+func TestJobs_Insert(t *testing.T) {
+	j := newJobs()
 
 	data := []int64{
 		5, 2, 3, 4, 1, 10, 9, 8, 7, 6,
@@ -193,11 +187,8 @@ func TestJobs_insert(t *testing.T) {
 	}
 }
 
-func Benchmark_insert(b *testing.B) {
-	j := &Jobs{
-		jobs: []*Job{},
-		lock: &sync.Mutex{},
-	}
+func BenchmarkJobs_Insert(b *testing.B) {
+	j := newJobs()
 
 	mm := []int64{}
 	for i := 0; i < 100; i++ {
@@ -213,11 +204,8 @@ func Benchmark_insert(b *testing.B) {
 	}
 }
 
-func Benchmark_pop(b *testing.B) {
-	j := &Jobs{
-		jobs: []*Job{},
-		lock: &sync.Mutex{},
-	}
+func Benchmark_Pop(b *testing.B) {
+	j := newJobs()
 
 	for i := 0; i < 100000; i++ {
 		j.insert(&Job{
@@ -229,5 +217,27 @@ func Benchmark_pop(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		j.pop()
+	}
+}
+
+// [Performance] 在短时间插入大量无序任务后执行耗时很久 #2
+func Benchmark_PopWithInsert(b *testing.B) {
+	j := newJobs()
+
+	mm := []int64{}
+	for i := 0; i < 100; i++ {
+		mm = append(mm, rand.Int63n(int64(10000000000)))
+	}
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		j.insert(&Job{
+			Unix: mm[i%100],
+		})
+
+		if i%100 == 0 {
+			j.pop()
+		}
 	}
 }

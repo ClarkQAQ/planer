@@ -1,27 +1,37 @@
 package planer
 
 import (
-	"sort"
+	"container/heap"
 	"sync"
 	"time"
 )
 
 type Jobs struct {
-	sort bool
 	jobs []*Job
 	lock *sync.Mutex
 }
 
-func (l Jobs) Len() int {
-	return len(l.jobs)
+func (j *Jobs) Len() int {
+	return len(j.jobs)
 }
 
-func (l Jobs) Less(i, j int) bool {
-	return l.jobs[i].Unix < l.jobs[j].Unix
+func (j *Jobs) Less(i, k int) bool {
+	return j.jobs[i].Unix < j.jobs[k].Unix
 }
 
-func (l *Jobs) Swap(i, j int) {
-	l.jobs[i], l.jobs[j] = l.jobs[j], l.jobs[i]
+func (j *Jobs) Swap(i, k int) {
+	j.jobs[i], j.jobs[k] = j.jobs[k], j.jobs[i]
+}
+
+func (j *Jobs) Push(x interface{}) {
+	j.jobs = append(j.jobs, x.(*Job))
+}
+
+func (j *Jobs) Pop() interface{} {
+	n := len(j.jobs)
+	x := j.jobs[n-1]
+	j.jobs = j.jobs[:n-1]
+	return x
 }
 
 type Job struct {
@@ -30,22 +40,26 @@ type Job struct {
 }
 
 func newJobs() *Jobs {
-	return &Jobs{
-		jobs: []*Job{},
+	j := &Jobs{
+		jobs: make([]*Job, 0, 512),
 		lock: &sync.Mutex{},
 	}
+
+	j.clean()
+
+	return j
 }
 
 func (j *Jobs) insert(jb *Job) {
 	j.lock.Lock()
 	defer j.lock.Unlock()
-
-	j.jobs, j.sort = append(j.jobs, jb), false
+	heap.Push(j, jb)
 }
 
 func (j *Jobs) clean() {
 	j.lock.Lock()
 	j.jobs = j.jobs[:0]
+	heap.Init(j)
 	j.lock.Unlock()
 }
 
@@ -57,15 +71,7 @@ func (j *Jobs) pop() *Job {
 		return nil
 	}
 
-	if !j.sort {
-		sort.Sort(j)
-		j.sort = true
-	}
-
-	jb := j.jobs[0]
-	j.jobs = j.jobs[1:]
-
-	return jb
+	return heap.Pop(j).(*Job)
 }
 
 type Planer struct {
