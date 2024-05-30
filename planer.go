@@ -121,7 +121,7 @@ func (p *Planer) AddJob(unix int64, job func()) {
 	}
 
 	p.currentJob = p.j.pop()
-	p.timer.Reset(time.Duration(p.currentJob.Unix-unix) * time.Second)
+	p.timer.Reset(0)
 }
 
 func (p *Planer) Start() {
@@ -138,9 +138,29 @@ func (p *Planer) Start() {
 	}(p.run, p.currentLock.Unlock)
 }
 
+func (p *Planer) ticker(now time.Time) {
+	p.currentLock.Lock()
+	defer p.currentLock.Unlock()
+
+	if p.currentJob != nil {
+		if p.currentJob.Unix-now.Unix() > 0 {
+			p.timer.Reset(time.Duration(p.currentJob.Unix-now.Unix()) * time.Second)
+			return
+		}
+
+		go func(fn func()) { fn() }(p.currentJob.Job)
+	}
+
+	if p.currentJob = p.j.pop(); p.currentJob != nil {
+		p.timer.Reset(0)
+		return
+	}
+
+	p.timer.Reset(p.waitDuration)
+}
+
 func (p *Planer) run() {
-	p.timer = time.NewTimer(p.waitDuration)
-	p.currentJob = p.j.pop()
+	p.timer = time.NewTimer(0)
 	for {
 		select {
 		case <-p.signal:
@@ -148,22 +168,7 @@ func (p *Planer) run() {
 			p.timer = nil
 			return
 		case now := <-p.timer.C:
-			p.currentLock.Lock()
-
-			if p.currentJob != nil && p.currentJob.Unix <= now.Unix() {
-				go func(fn func()) { fn() }(p.currentJob.Job)
-				p.currentJob = p.j.pop()
-			}
-
-			// 定义下次执行时间
-			if p.currentJob != nil && p.currentJob.Unix-now.Unix() >= 0 {
-				p.timer.Reset(time.Duration(p.currentJob.Unix-now.Unix()) * time.Second)
-			} else {
-				p.currentJob = p.j.pop()
-				p.timer.Reset(p.waitDuration)
-			}
-
-			p.currentLock.Unlock()
+			p.ticker(now)
 		}
 	}
 }

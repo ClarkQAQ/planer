@@ -108,6 +108,38 @@ func TestPlaner_Stop(t *testing.T) {
 	}
 }
 
+// 测试连续调用同一个时间
+func TestPlaner_MoreThanOne(t *testing.T) {
+	p := New()
+	p.SetWaitDuration(time.Second)
+
+	n, i := 100, 0
+	ch := make(chan bool)
+
+	u := time.Now().Unix() - 10
+
+	for i := 0; i < n; i++ {
+		p.AddJob(u, func() {
+			ch <- true
+		})
+	}
+
+	p.Start()
+	defer p.Stop()
+
+	for {
+		select {
+		case <-ch:
+			i++
+			if i == n {
+				return
+			}
+		case <-time.After(time.Second * 3):
+			t.Fatalf("testing failed: %d", i)
+		}
+	}
+}
+
 func TestPlaner_StopAfter(t *testing.T) {
 	p := New()
 	p.SetWaitDuration(time.Second)
